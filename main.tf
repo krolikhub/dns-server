@@ -2,6 +2,13 @@ provider "libvirt" {
   uri = var.libvirt_uri
 }
 
+# Storage pool для виртуальных машин
+resource "libvirt_pool" "vm_pool" {
+  name = var.pool_name
+  type = "dir"
+  path = var.pool_path
+}
+
 # Генерация TSIG секрета
 resource "random_password" "tsig_secret" {
   length  = 32
@@ -22,7 +29,7 @@ locals {
 # Базовый образ для виртуальной машины
 resource "libvirt_volume" "base" {
   name   = "${var.vm_name}-base.qcow2"
-  pool   = var.pool_name
+  pool   = libvirt_pool.vm_pool.name
   source = var.base_image_url
   format = "qcow2"
 }
@@ -30,7 +37,7 @@ resource "libvirt_volume" "base" {
 # Диск для виртуальной машины
 resource "libvirt_volume" "dns_server" {
   name           = "${var.vm_name}.qcow2"
-  pool           = var.pool_name
+  pool           = libvirt_pool.vm_pool.name
   base_volume_id = libvirt_volume.base.id
   size           = var.disk_size
   format         = "qcow2"
@@ -39,7 +46,7 @@ resource "libvirt_volume" "dns_server" {
 # Cloud-init диск
 resource "libvirt_cloudinit_disk" "cloudinit" {
   name      = "${var.vm_name}-cloudinit.iso"
-  pool      = var.pool_name
+  pool      = libvirt_pool.vm_pool.name
   user_data = data.template_file.user_data.rendered
 }
 

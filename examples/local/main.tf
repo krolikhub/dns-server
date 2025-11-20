@@ -9,8 +9,8 @@ module "dns_server" {
   # Основные настройки
   vm_name       = "dns-server"
   dns_zone      = "test.local"
-  dns_server_ip = "192.168.122.100"
-  network_cidr  = "192.168.122.0/24"
+  dns_server_ip = "192.168.123.100"
+  network_cidr  = "192.168.123.0/24"
 
   # Ресурсы VM
   memory    = 2048

@@ -104,7 +104,7 @@ virsh domifaddr dns-server
 2. Подключиться к серверу:
 ```bash
 # SSH
-ssh root@192.168.122.100
+ssh root@192.168.123.100
 
 # Или через virsh console
 virsh console dns-server
@@ -117,8 +117,8 @@ systemctl status pdns
 
 4. Проверить DNS зону:
 ```bash
-dig @192.168.122.100 test.local SOA
-dig @192.168.122.100 test.local NS
+dig @192.168.123.100 test.local SOA
+dig @192.168.123.100 test.local NS
 ```
 
 5. Проверить firewall:
@@ -147,7 +147,7 @@ EOF
 3. Добавить TXT запись:
 ```bash
 nsupdate -k /tmp/tsig.key <<EOF
-server 192.168.122.100
+server 192.168.123.100
 zone test.local
 update add _acme-challenge.test.local. 300 IN TXT "test-txt-record-123"
 send
@@ -156,13 +156,13 @@ EOF
 
 4. Проверить запись:
 ```bash
-dig @192.168.122.100 _acme-challenge.test.local TXT
+dig @192.168.123.100 _acme-challenge.test.local TXT
 ```
 
 5. Удалить запись:
 ```bash
 nsupdate -k /tmp/tsig.key <<EOF
-server 192.168.122.100
+server 192.168.123.100
 zone test.local
 update delete _acme-challenge.test.local. TXT
 send
@@ -179,13 +179,13 @@ PDNS_API_KEY=$(terraform output -raw pdns_api_key)
 2. Просмотр зон:
 ```bash
 curl -s -H "X-API-Key: $PDNS_API_KEY" \
-  http://192.168.122.100:8081/api/v1/servers/localhost/zones | jq
+  http://192.168.123.100:8081/api/v1/servers/localhost/zones | jq
 ```
 
 3. Просмотр записей зоны:
 ```bash
 curl -s -H "X-API-Key: $PDNS_API_KEY" \
-  http://192.168.122.100:8081/api/v1/servers/localhost/zones/test.local | jq
+  http://192.168.123.100:8081/api/v1/servers/localhost/zones/test.local | jq
 ```
 
 ## Настройка WireGuard (опционально)
@@ -222,6 +222,50 @@ terraform destroy
 ```
 
 ## Troubleshooting
+
+### Ошибка "can't find storage pool 'default'"
+
+Если при запуске `terraform apply` вы получаете ошибку:
+```
+Error: can't find storage pool 'default'
+  with module.dns_server.libvirt_volume.base
+```
+
+**Причина:** Storage pool 'default' не создан в вашей системе libvirt.
+
+**Решение:** Terraform автоматически создаст storage pool. Если вы хотите использовать другой путь для хранения образов, укажите переменную `pool_path` в `terraform.tfvars`:
+```hcl
+pool_path = "/custom/path/to/images"
+```
+
+По умолчанию используется `/var/lib/libvirt/images`. Убедитесь, что у пользователя есть права на запись в эту директорию:
+```bash
+sudo mkdir -p /var/lib/libvirt/images
+sudo chown root:libvirt /var/lib/libvirt/images
+sudo chmod 775 /var/lib/libvirt/images
+```
+
+### Ошибка "Network is already in use by interface virbr0"
+
+Если при запуске `terraform apply` вы получаете ошибку:
+```
+Error: error creating libvirt network: internal error: Network is already in use by interface virbr0
+  with module.dns_server.libvirt_network.dns_network
+```
+
+**Причина:** Диапазон IP 192.168.122.0/24 уже используется существующей сетью libvirt (virbr0).
+
+**Решение:** Конфигурация по умолчанию изменена на 192.168.123.0/24. Если вы все еще получаете эту ошибку, выберите другой диапазон сети в `terraform.tfvars`:
+```hcl
+network_cidr  = "192.168.124.0/24"
+dns_server_ip = "192.168.124.100"
+```
+
+Или удалите существующую сеть (если она не используется):
+```bash
+virsh net-destroy default
+virsh net-undefine default
+```
 
 ### Ошибка "Invalid function argument" - SSH ключ не найден
 
@@ -296,7 +340,7 @@ tail -f /var/log/libvirt/qemu/dns-server.log
 
 Проверить логи cloud-init:
 ```bash
-ssh root@192.168.122.100
+ssh root@192.168.123.100
 tail -f /var/log/cloud-init-output.log
 ```
 
