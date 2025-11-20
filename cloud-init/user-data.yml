@@ -1,0 +1,322 @@
+#cloud-config
+hostname: ${hostname}
+fqdn: ${hostname}.${dns_zone}
+manage_etc_hosts: true
+
+# Пользователи
+users:
+  - name: root
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+  - name: pdns
+    system: true
+    shell: /bin/false
+
+# Пакеты для установки
+packages:
+  - pdns-server
+  - pdns-backend-sqlite3
+  - sqlite3
+  - bind9-dnsutils
+  - ufw
+  - curl
+  - wget
+  - vim
+  - htop
+  - net-tools
+  - wireguard
+  - wireguard-tools
+  - python3
+  - python3-pip
+
+# Настройка timezone
+timezone: UTC
+
+# Обновление пакетов
+package_update: true
+package_upgrade: true
+
+# Файлы для записи
+write_files:
+  # PowerDNS конфигурация
+  - path: /etc/powerdns/pdns.conf
+    owner: root:root
+    permissions: '0644'
+    content: |
+      # PowerDNS Configuration
+      launch=gsqlite3
+      gsqlite3-database=/var/lib/powerdns/pdns.sqlite3
+
+      # API Configuration
+      api=yes
+      api-key=${pdns_api_key}
+      webserver=yes
+      webserver-address=0.0.0.0
+      webserver-port=8081
+      webserver-allow-from=0.0.0.0/0
+
+      # DNS Configuration
+      local-address=${dns_server_ip}
+      local-port=53
+
+      # Allow AXFR
+      allow-axfr-ips=127.0.0.1,${dns_server_ip}
+
+      # DNSSEC
+      dnssec=${enable_dnssec}
+
+      # RFC 2136 Dynamic DNS
+      dnsupdate=yes
+      allow-dnsupdate-from=127.0.0.1,${dns_server_ip}
+
+      # Security
+      setuid=pdns
+      setgid=pdns
+
+      # Logging
+      log-dns-queries=yes
+      log-dns-details=yes
+      loglevel=5
+
+      # SOA Configuration
+      default-soa-content=ns1.${dns_zone} hostmaster.${dns_zone} 0 10800 3600 604800 3600
+
+  # TSIG ключ конфигурация
+  - path: /etc/powerdns/tsig.key
+    owner: root:root
+    permissions: '0600'
+    content: |
+      key "${tsig_key_name}" {
+        algorithm ${tsig_algorithm};
+        secret "${tsig_secret}";
+      };
+
+  # Скрипт инициализации PowerDNS
+  - path: /usr/local/bin/init-powerdns.sh
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -e
+
+      DB_PATH="/var/lib/powerdns/pdns.sqlite3"
+      ZONE="${dns_zone}"
+      NS_IP="${dns_server_ip}"
+      TSIG_NAME="${tsig_key_name}"
+      TSIG_SECRET="${tsig_secret}"
+      TSIG_ALGO="${tsig_algorithm}"
+
+      echo "Инициализация PowerDNS..."
+
+      # Создание директории для БД
+      mkdir -p /var/lib/powerdns
+      chown pdns:pdns /var/lib/powerdns
+
+      # Создание схемы БД если не существует
+      if [ ! -f "$DB_PATH" ]; then
+        echo "Создание базы данных PowerDNS..."
+        sqlite3 "$DB_PATH" < /usr/share/doc/pdns-backend-sqlite3/schema.sqlite3.sql
+        chown pdns:pdns "$DB_PATH"
+      fi
+
+      # Добавление TSIG ключа в БД
+      echo "Добавление TSIG ключа..."
+      sqlite3 "$DB_PATH" <<EOF
+      INSERT OR REPLACE INTO tsigkeys (name, algorithm, secret)
+      VALUES ('$TSIG_NAME', '$TSIG_ALGO', '$TSIG_SECRET');
+EOF
+
+      # Создание DNS зоны
+      echo "Создание DNS зоны $ZONE..."
+      ZONE_ID=$(sqlite3 "$DB_PATH" "SELECT id FROM domains WHERE name='$ZONE';")
+
+      if [ -z "$ZONE_ID" ]; then
+        sqlite3 "$DB_PATH" <<EOF
+      INSERT INTO domains (name, type, master) VALUES ('$ZONE', 'NATIVE', '');
+
+      INSERT INTO records (domain_id, name, type, content, ttl, prio)
+      VALUES
+        ((SELECT id FROM domains WHERE name='$ZONE'), '$ZONE', 'SOA', 'ns1.$ZONE hostmaster.$ZONE 1 10800 3600 604800 3600', 3600, 0),
+        ((SELECT id FROM domains WHERE name='$ZONE'), '$ZONE', 'NS', 'ns1.$ZONE', 3600, 0),
+        ((SELECT id FROM domains WHERE name='$ZONE'), 'ns1.$ZONE', 'A', '$NS_IP', 3600, 0);
+EOF
+        echo "Зона $ZONE создана"
+      else
+        echo "Зона $ZONE уже существует"
+      fi
+
+      # Установка метаданных для TSIG
+      echo "Настройка TSIG метаданных..."
+      sqlite3 "$DB_PATH" <<EOF
+      DELETE FROM domainmetadata WHERE domain_id = (SELECT id FROM domains WHERE name='$ZONE') AND kind='TSIG-ALLOW-DNSUPDATE';
+      INSERT INTO domainmetadata (domain_id, kind, content)
+      VALUES ((SELECT id FROM domains WHERE name='$ZONE'), 'TSIG-ALLOW-DNSUPDATE', '$TSIG_NAME');
+
+      DELETE FROM domainmetadata WHERE domain_id = (SELECT id FROM domains WHERE name='$ZONE') AND kind='ALLOW-DNSUPDATE-FROM';
+      INSERT INTO domainmetadata (domain_id, kind, content)
+      VALUES ((SELECT id FROM domains WHERE name='$ZONE'), 'ALLOW-DNSUPDATE-FROM', '0.0.0.0/0');
+EOF
+
+      # Права доступа
+      chown -R pdns:pdns /var/lib/powerdns
+      chmod 640 "$DB_PATH"
+
+      echo "PowerDNS инициализирован успешно!"
+
+  # Firewall конфигурация
+  - path: /usr/local/bin/setup-firewall.sh
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -e
+
+      echo "Настройка firewall..."
+
+      # Сброс правил
+      ufw --force reset
+
+      # Политика по умолчанию
+      ufw default deny incoming
+      ufw default allow outgoing
+
+      # SSH
+      ufw allow 22/tcp
+
+      # DNS
+      ufw allow 53/tcp
+      ufw allow 53/udp
+
+      # PowerDNS API
+      ufw allow 8081/tcp
+
+      # WireGuard
+      ufw allow 51820/udp
+
+      # Включение firewall
+      ufw --force enable
+
+      echo "Firewall настроен!"
+
+  # WireGuard конфигурация (если включено)
+  - path: /usr/local/bin/setup-wireguard.sh
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -e
+
+      WG_ENABLED="${wg_enabled}"
+
+      if [ "$WG_ENABLED" != "true" ]; then
+        echo "WireGuard отключен, пропуск..."
+        exit 0
+      fi
+
+      echo "Настройка WireGuard..."
+
+      WG_PRIVATE_KEY="${wg_private_key}"
+      WG_ADDRESS="${wg_address}"
+      WG_PEER_PUBLIC_KEY="${wg_peer_public_key}"
+      WG_PEER_ENDPOINT="${wg_peer_endpoint}"
+      WG_PEER_ALLOWED_IPS="${wg_peer_allowed_ips}"
+
+      if [ -z "$WG_PRIVATE_KEY" ] || [ -z "$WG_ADDRESS" ]; then
+        echo "WireGuard конфигурация неполная, пропуск..."
+        exit 0
+      fi
+
+      cat > /etc/wireguard/wg0.conf <<EOF
+      [Interface]
+      PrivateKey = $WG_PRIVATE_KEY
+      Address = $WG_ADDRESS
+      ListenPort = 51820
+
+      [Peer]
+      PublicKey = $WG_PEER_PUBLIC_KEY
+      Endpoint = $WG_PEER_ENDPOINT
+      AllowedIPs = $WG_PEER_ALLOWED_IPS
+      PersistentKeepalive = 25
+      EOF
+
+      chmod 600 /etc/wireguard/wg0.conf
+
+      # Включение WireGuard
+      systemctl enable wg-quick@wg0
+      systemctl start wg-quick@wg0
+
+      echo "WireGuard настроен!"
+
+  # Скрипт проверки
+  - path: /usr/local/bin/test-dns.sh
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+
+      ZONE="${dns_zone}"
+      NS_IP="${dns_server_ip}"
+
+      echo "=== Тестирование DNS сервера ==="
+      echo ""
+
+      echo "1. Проверка SOA записи:"
+      dig @$NS_IP $ZONE SOA +short
+      echo ""
+
+      echo "2. Проверка NS записи:"
+      dig @$NS_IP $ZONE NS +short
+      echo ""
+
+      echo "3. Проверка A записи NS сервера:"
+      dig @$NS_IP ns1.$ZONE A +short
+      echo ""
+
+      echo "4. Статус PowerDNS:"
+      systemctl status pdns --no-pager
+      echo ""
+
+      echo "5. Проверка API PowerDNS:"
+      curl -s http://localhost:8081/api/v1/servers/localhost/zones 2>&1 | head -n 5
+      echo ""
+
+runcmd:
+  # Системные настройки
+  - echo "127.0.0.1 ${hostname} ${hostname}.${dns_zone}" >> /etc/hosts
+
+  # Установка PowerDNS
+  - systemctl stop systemd-resolved || true
+  - systemctl disable systemd-resolved || true
+  - rm -f /etc/resolv.conf
+  - echo "nameserver 8.8.8.8" > /etc/resolv.conf
+  - echo "nameserver 8.8.4.4" >> /etc/resolv.conf
+
+  # Инициализация PowerDNS
+  - /usr/local/bin/init-powerdns.sh
+
+  # Запуск PowerDNS
+  - systemctl enable pdns
+  - systemctl restart pdns
+  - sleep 5
+
+  # Настройка firewall
+  - /usr/local/bin/setup-firewall.sh
+
+  # Настройка WireGuard
+  - /usr/local/bin/setup-wireguard.sh
+
+  # Тест DNS
+  - /usr/local/bin/test-dns.sh
+
+  # Сохранение информации о TSIG ключе
+  - echo "TSIG Key Name: ${tsig_key_name}" > /root/tsig-info.txt
+  - echo "TSIG Secret: ${tsig_secret}" >> /root/tsig-info.txt
+  - echo "TSIG Algorithm: ${tsig_algorithm}" >> /root/tsig-info.txt
+  - chmod 600 /root/tsig-info.txt
+
+  # Финальное сообщение
+  - echo "DNS Server setup completed!" > /var/log/cloud-init-done.log
+  - echo "Zone: ${dns_zone}" >> /var/log/cloud-init-done.log
+  - echo "IP: ${dns_server_ip}" >> /var/log/cloud-init-done.log
+
+final_message: "DNS Server with PowerDNS is ready! Zone: ${dns_zone}, IP: ${dns_server_ip}"

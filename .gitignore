@@ -1,0 +1,47 @@
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+crash.log
+crash.*.log
+
+# Cloud-init generated files
+*.iso
+
+# SSH keys
+*.pem
+*.key
+id_rsa
+id_rsa.pub
+privatekey
+publickey
+
+# WireGuard keys
+wg-*.key
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+/tmp/
+*.tmp
