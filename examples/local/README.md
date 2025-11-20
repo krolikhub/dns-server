@@ -104,7 +104,7 @@ virsh domifaddr dns-server
 2. Подключиться к серверу:
 ```bash
 # SSH
-ssh root@192.168.123.100
+ssh root@192.168.200.100
 
 # Или через virsh console
 virsh console dns-server
@@ -117,8 +117,8 @@ systemctl status pdns
 
 4. Проверить DNS зону:
 ```bash
-dig @192.168.123.100 test.local SOA
-dig @192.168.123.100 test.local NS
+dig @192.168.200.100 test.local SOA
+dig @192.168.200.100 test.local NS
 ```
 
 5. Проверить firewall:
@@ -147,7 +147,7 @@ EOF
 3. Добавить TXT запись:
 ```bash
 nsupdate -k /tmp/tsig.key <<EOF
-server 192.168.123.100
+server 192.168.200.100
 zone test.local
 update add _acme-challenge.test.local. 300 IN TXT "test-txt-record-123"
 send
@@ -156,13 +156,13 @@ EOF
 
 4. Проверить запись:
 ```bash
-dig @192.168.123.100 _acme-challenge.test.local TXT
+dig @192.168.200.100 _acme-challenge.test.local TXT
 ```
 
 5. Удалить запись:
 ```bash
 nsupdate -k /tmp/tsig.key <<EOF
-server 192.168.123.100
+server 192.168.200.100
 zone test.local
 update delete _acme-challenge.test.local. TXT
 send
@@ -179,13 +179,13 @@ PDNS_API_KEY=$(terraform output -raw pdns_api_key)
 2. Просмотр зон:
 ```bash
 curl -s -H "X-API-Key: $PDNS_API_KEY" \
-  http://192.168.123.100:8081/api/v1/servers/localhost/zones | jq
+  http://192.168.200.100:8081/api/v1/servers/localhost/zones | jq
 ```
 
 3. Просмотр записей зоны:
 ```bash
 curl -s -H "X-API-Key: $PDNS_API_KEY" \
-  http://192.168.123.100:8081/api/v1/servers/localhost/zones/test.local | jq
+  http://192.168.200.100:8081/api/v1/servers/localhost/zones/test.local | jq
 ```
 
 ## Настройка WireGuard (опционально)
@@ -255,10 +255,10 @@ Error: error creating libvirt network: internal error: Network is already in use
 
 **Причина:** Диапазон IP 192.168.122.0/24 уже используется существующей сетью libvirt (virbr0).
 
-**Решение:** Конфигурация по умолчанию изменена на 192.168.123.0/24. Если вы все еще получаете эту ошибку, выберите другой диапазон сети в `terraform.tfvars`:
+**Решение:** Конфигурация по умолчанию изменена на 192.168.200.0/24. Если вы все еще получаете эту ошибку, выберите другой диапазон сети в `terraform.tfvars`:
 ```hcl
-network_cidr  = "192.168.124.0/24"
-dns_server_ip = "192.168.124.100"
+network_cidr  = "192.168.201.0/24"
+dns_server_ip = "192.168.201.100"
 ```
 
 Или удалите существующую сеть (если она не используется):
@@ -340,7 +340,7 @@ tail -f /var/log/libvirt/qemu/dns-server.log
 
 Проверить логи cloud-init:
 ```bash
-ssh root@192.168.123.100
+ssh root@192.168.200.100
 tail -f /var/log/cloud-init-output.log
 ```
 

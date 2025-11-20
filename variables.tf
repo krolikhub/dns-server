@@ -37,13 +37,13 @@ variable "dns_nameservers" {
 variable "network_cidr" {
   description = "CIDR сети для DNS сервера"
   type        = string
-  default     = "192.168.123.0/24"
+  default     = "192.168.200.0/24"
 }
 
 variable "dns_server_ip" {
   description = "IP адрес DNS сервера"
   type        = string
-  default     = "192.168.123.100"
+  default     = "192.168.200.100"
 }
 
 variable "ssh_public_key" {
@@ -119,13 +119,13 @@ variable "enable_dnssec" {
 variable "pool_name" {
   description = "Имя libvirt storage pool"
   type        = string
-  default     = "default"
+  default     = "dns-server-pool"
 }
 
 variable "pool_path" {
   description = "Путь к директории storage pool"
   type        = string
-  default     = "/var/lib/libvirt/images"
+  default     = "/var/lib/libvirt/pools/dns-server"
 }
 
 variable "libvirt_uri" {
