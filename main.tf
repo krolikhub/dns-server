@@ -72,6 +72,11 @@ resource "libvirt_domain" "dns_server" {
   memory = var.memory
   vcpu   = var.vcpu
 
+  # Используем QEMU эмуляцию вместо KVM
+  type    = "qemu"
+  machine = "pc"
+  arch    = "x86_64"
+
   cloudinit = libvirt_cloudinit_disk.cloudinit.id
 
   network_interface {
