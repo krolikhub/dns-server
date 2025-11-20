@@ -7,10 +7,10 @@
 1. Установленный libvirt и KVM:
 ```bash
 # Ubuntu/Debian
-sudo apt-get install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils
+sudo apt-get install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils xsltproc
 
 # Fedora/RHEL
-sudo dnf install -y qemu-kvm libvirt virt-install
+sudo dnf install -y qemu-kvm libvirt virt-install libxslt
 
 # Включение и запуск libvirt
 sudo systemctl enable libvirtd
@@ -222,6 +222,25 @@ terraform destroy
 ```
 
 ## Troubleshooting
+
+### Ошибка "xsltproc: executable file not found in $PATH"
+
+Если при создании libvirt domain вы получаете ошибку:
+```
+Error: error applying XSLT stylesheet: exec: "xsltproc": executable file not found in $PATH
+  with module.dns_server.libvirt_domain.dns_server
+```
+
+**Причина:** Отсутствует утилита `xsltproc`, необходимая для работы libvirt провайдера Terraform.
+
+**Решение:**
+```bash
+# Ubuntu/Debian
+apt-get install -y xsltproc
+
+# Fedora/RHEL
+dnf install -y libxslt
+```
 
 ### Ошибка "can't find storage pool 'default'"
 
