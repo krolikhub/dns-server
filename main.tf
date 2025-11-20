@@ -106,6 +106,34 @@ resource "libvirt_domain" "dns_server" {
     listen_type = "address"
     autoport    = true
   }
+
+  # Настройки безопасности для решения проблем с правами доступа
+  xml {
+    xslt = <<EOF
+<?xml version="1.0" ?>
+<xsl:stylesheet version="1.0"
+                xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:output omit-xml-declaration="yes" indent="yes"/>
+  <xsl:template match="node()|@*">
+     <xsl:copy>
+       <xsl:apply-templates select="node()|@*"/>
+     </xsl:copy>
+  </xsl:template>
+
+  <xsl:template match="/domain/seclabel">
+    <seclabel type='none' model='none'/>
+  </xsl:template>
+
+  <xsl:template match="/domain[count(seclabel)=0]">
+    <xsl:copy>
+      <xsl:apply-templates select="@*"/>
+      <seclabel type='none' model='none'/>
+      <xsl:apply-templates select="node()"/>
+    </xsl:copy>
+  </xsl:template>
+</xsl:stylesheet>
+EOF
+  }
 }
 
 # Cloud-init user data
