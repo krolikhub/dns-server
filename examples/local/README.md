@@ -30,9 +30,21 @@ sudo mv terraform /usr/local/bin/
 
 3. SSH ключ:
 ```bash
-# Если у вас нет SSH ключа
+# Если у вас нет SSH ключа, создайте его
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
 ```
+
+4. (Опционально) Настройка переменных:
+```bash
+# Скопируйте пример файла с переменными
+cp terraform.tfvars.example terraform.tfvars
+
+# Отредактируйте terraform.tfvars и укажите путь к вашему SSH ключу
+# или вставьте содержимое SSH ключа напрямую
+```
+
+**Примечание:** Если ваш SSH ключ находится не в стандартном месте (`~/.ssh/id_rsa.pub`),
+вы можете настроить путь через переменную `ssh_public_key_path` в файле `terraform.tfvars`.
 
 ## Использование
 
@@ -210,6 +222,35 @@ terraform destroy
 ```
 
 ## Troubleshooting
+
+### Ошибка "Invalid function argument" - SSH ключ не найден
+
+Если при запуске `terraform apply` вы получаете ошибку:
+```
+Error: Invalid function argument
+on main.tf line 21, in module "dns_server":
+  21:   ssh_public_key = file(pathexpand("~/.ssh/id_rsa.pub"))
+Invalid value for "path" parameter: no file exists at "/home/user/.ssh/id_rsa.pub"
+```
+
+**Причина:** SSH ключ не найден по указанному пути.
+
+**Решение:**
+
+1. Создайте SSH ключ:
+```bash
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+```
+
+2. Или укажите другой путь к существующему ключу в `terraform.tfvars`:
+```hcl
+ssh_public_key_path = "~/.ssh/my_custom_key.pub"
+```
+
+3. Или вставьте содержимое SSH ключа напрямую в `terraform.tfvars`:
+```hcl
+ssh_public_key_content = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQ... your-email@example.com"
+```
 
 ### Ошибка "Invalid provider registry host"
 
