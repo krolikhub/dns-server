@@ -36,6 +36,24 @@ ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
 
 ## Использование
 
+### ⚠️ Важно: Настройка окружения при работе через прокси
+
+Если вы работаете в окружении с прокси-сервером, перед запуском `terraform init` необходимо настроить переменную окружения `NO_PROXY`:
+
+```bash
+# Вариант 1: Использовать скрипт автоматической настройки (рекомендуется)
+cd examples/local
+source ../../scripts/setup-terraform-env.sh
+
+# Вариант 2: Настроить вручную
+export NO_PROXY="${NO_PROXY},registry.terraform.io,releases.hashicorp.com"
+
+# Вариант 3: Временно отключить прокси
+unset HTTP_PROXY HTTPS_PROXY
+```
+
+После настройки окружения можно приступать к работе с Terraform.
+
 1. Инициализация Terraform:
 ```bash
 cd examples/local
@@ -192,6 +210,37 @@ terraform destroy
 ```
 
 ## Troubleshooting
+
+### Ошибка "Invalid provider registry host"
+
+Если при запуске `terraform init` вы получаете ошибку:
+```
+Error: Invalid provider registry host
+The host "registry.terraform.io" given in provider source address
+does not offer a Terraform provider registry.
+```
+
+**Причина:** Ваше окружение использует прокси-сервер, и `registry.terraform.io` не добавлен в список исключений `NO_PROXY`.
+
+**Решение:**
+```bash
+# Способ 1: Использовать скрипт (рекомендуется)
+source ../../scripts/setup-terraform-env.sh
+terraform init
+
+# Способ 2: Добавить вручную в NO_PROXY
+export NO_PROXY="${NO_PROXY},registry.terraform.io,releases.hashicorp.com"
+terraform init
+
+# Способ 3: Временно отключить прокси
+unset HTTP_PROXY HTTPS_PROXY
+terraform init
+```
+
+Для постоянного решения добавьте в `~/.bashrc` или `~/.zshrc`:
+```bash
+export NO_PROXY="${NO_PROXY},registry.terraform.io,releases.hashicorp.com"
+```
 
 ### VM не запускается
 
