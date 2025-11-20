@@ -24,9 +24,10 @@ dns-server/
 ├── cloud-init/
 │   └── user-data.yml       # Cloud-init конфигурация
 ├── scripts/
-│   ├── test-dns-update.sh  # Тест динамического обновления DNS
-│   ├── get-tsig-info.sh    # Получение TSIG информации
-│   └── check-dns-status.sh # Проверка статуса DNS сервера
+│   ├── test-dns-update.sh    # Тест динамического обновления DNS
+│   ├── get-tsig-info.sh      # Получение TSIG информации
+│   ├── check-dns-status.sh   # Проверка статуса DNS сервера
+│   └── setup-terraform-env.sh # Настройка окружения для Terraform (прокси)
 └── examples/
     └── local/              # Пример для локальной разработки
         ├── main.tf
@@ -63,6 +64,9 @@ ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
 
 ```bash
 cd examples/local
+
+# Настройка окружения (если работаете через прокси)
+source ../../scripts/setup-terraform-env.sh
 
 # Инициализация
 terraform init
