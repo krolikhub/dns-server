@@ -18,7 +18,7 @@ module "dns_server" {
   disk_size = 21474836480 # 20GB
 
   # SSH ключ (замените на свой!)
-  ssh_public_key = file(pathexpand("~/.ssh/id_rsa.pub"))
+  ssh_public_key = var.ssh_public_key_content != "" ? var.ssh_public_key_content : file(pathexpand(var.ssh_public_key_path))
 
   # TSIG настройки
   tsig_key_name  = "txt-updater"
