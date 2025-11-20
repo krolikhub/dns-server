@@ -12,7 +12,52 @@ QEMU/KVM работает от пользователя `libvirt-qemu` или `q
 
 ### Решения
 
-#### 1. Включить dynamic_ownership в libvirt (Рекомендуется)
+#### 1. Отключить security labels в конфигурации домена (Автоматически применено)
+
+В модуле Terraform уже добавлена настройка, которая отключает SELinux/AppArmor security labels для домена:
+
+```hcl
+resource "libvirt_domain" "dns_server" {
+  # ... другие настройки ...
+
+  xml {
+    xslt = <<EOF
+<?xml version="1.0" ?>
+<xsl:stylesheet version="1.0"
+                xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+  <xsl:output omit-xml-declaration="yes" indent="yes"/>
+  <xsl:template match="node()|@*">
+     <xsl:copy>
+       <xsl:apply-templates select="node()|@*"/>
+     </xsl:copy>
+  </xsl:template>
+
+  <xsl:template match="/domain/seclabel">
+    <seclabel type='none' model='none'/>
+  </xsl:template>
+
+  <xsl:template match="/domain[count(seclabel)=0]">
+    <xsl:copy>
+      <xsl:apply-templates select="@*"/>
+      <seclabel type='none' model='none'/>
+      <xsl:apply-templates select="node()"/>
+    </xsl:copy>
+  </xsl:template>
+</xsl:stylesheet>
+EOF
+  }
+}
+```
+
+Это решение:
+- Не требует изменения системных файлов
+- Работает автоматически при `terraform apply`
+- Отключает security labels для данного домена
+- Позволяет QEMU получить доступ к файлам образов
+
+**Просто выполните `terraform apply` - настройка уже применена в модуле.**
+
+#### 2. Включить dynamic_ownership в libvirt (Альтернатива)
 
 Проверьте конфигурацию libvirt:
 
@@ -31,7 +76,7 @@ sudo systemctl restart libvirtd
 
 Параметр `dynamic_ownership = 1` позволяет libvirt автоматически изменять владельца файлов образов при запуске ВМ на пользователя QEMU, а при остановке - обратно на root.
 
-#### 2. Пересоздать storage pool
+#### 3. Пересоздать storage pool (если нужно)
 
 После изменения конфигурации, пересоздайте pool:
 
@@ -45,7 +90,7 @@ terraform destroy -target=module.dns_server.libvirt_pool.vm_pool
 terraform apply
 ```
 
-#### 3. Исправить права вручную (Временное решение)
+#### 4. Исправить права вручную (Временное решение)
 
 Если нужно быстро запустить ВМ:
 
@@ -61,7 +106,7 @@ sudo chmod -R 755 /var/lib/libvirt/pools/dns-server/
 sudo chmod 644 /var/lib/libvirt/pools/dns-server/*.qcow2
 ```
 
-#### 4. Проверить AppArmor/SELinux
+#### 5. Проверить AppArmor/SELinux (если предыдущие решения не помогли)
 
 На Ubuntu проверьте AppArmor:
 
