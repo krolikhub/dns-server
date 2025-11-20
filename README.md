@@ -82,10 +82,10 @@ terraform apply
 virsh domifaddr dns-server
 
 # Проверить DNS
-dig @192.168.122.100 test.local SOA
+dig @192.168.200.100 test.local SOA
 
 # Подключиться по SSH
-ssh root@192.168.122.100
+ssh root@192.168.200.100
 ```
 
 ## Использование модуля
@@ -98,7 +98,7 @@ module "dns_server" {
 
   vm_name       = "dns-server"
   dns_zone      = "example.com"
-  dns_server_ip = "192.168.122.100"
+  dns_server_ip = "192.168.200.100"
 
   ssh_public_key = file("~/.ssh/id_rsa.pub")
 
@@ -115,7 +115,7 @@ module "dns_server" {
 
   vm_name       = "dns-server"
   dns_zone      = "example.com"
-  dns_server_ip = "192.168.122.100"
+  dns_server_ip = "192.168.200.100"
 
   ssh_public_key = file("~/.ssh/id_rsa.pub")
 
@@ -157,14 +157,14 @@ EOF
 
 # Добавить TXT запись
 nsupdate -k /tmp/tsig.key <<EOF
-server 192.168.122.100
+server 192.168.200.100
 zone test.local
 update add _acme-challenge.test.local. 300 IN TXT "verification-string"
 send
 EOF
 
 # Проверить
-dig @192.168.122.100 _acme-challenge.test.local TXT
+dig @192.168.200.100 _acme-challenge.test.local TXT
 ```
 
 ### Автоматическое тестирование
@@ -187,15 +187,15 @@ PDNS_API_KEY=$(terraform output -raw pdns_api_key)
 ```bash
 # Список зон
 curl -H "X-API-Key: $PDNS_API_KEY" \
-  http://192.168.122.100:8081/api/v1/servers/localhost/zones
+  http://192.168.200.100:8081/api/v1/servers/localhost/zones
 
 # Информация о зоне
 curl -H "X-API-Key: $PDNS_API_KEY" \
-  http://192.168.122.100:8081/api/v1/servers/localhost/zones/test.local
+  http://192.168.200.100:8081/api/v1/servers/localhost/zones/test.local
 
 # Статистика
 curl -H "X-API-Key: $PDNS_API_KEY" \
-  http://192.168.122.100:8081/api/v1/servers/localhost/statistics
+  http://192.168.200.100:8081/api/v1/servers/localhost/statistics
 ```
 
 ## Интеграция с Vault (планируется)
@@ -257,16 +257,16 @@ virsh undefine dns-server
 ./scripts/check-dns-status.sh
 
 # Проверка записей
-dig @192.168.122.100 test.local SOA
-dig @192.168.122.100 test.local NS
-dig @192.168.122.100 ns1.test.local A
+dig @192.168.200.100 test.local SOA
+dig @192.168.200.100 test.local NS
+dig @192.168.200.100 ns1.test.local A
 ```
 
 ### Отладка на сервере
 
 ```bash
 # Подключение
-ssh root@192.168.122.100
+ssh root@192.168.200.100
 
 # Статус PowerDNS
 systemctl status pdns
@@ -298,7 +298,7 @@ wg show
 | `vcpu` | Количество vCPU | number | 2 |
 | `disk_size` | Размер диска в байтах | number | 21474836480 (20GB) |
 | `dns_zone` | DNS зона | string | "example.com" |
-| `dns_server_ip` | IP адрес DNS сервера | string | "192.168.122.100" |
+| `dns_server_ip` | IP адрес DNS сервера | string | "192.168.200.100" |
 | `ssh_public_key` | SSH публичный ключ | string | "" |
 | `tsig_key_name` | Имя TSIG ключа | string | "txt-updater" |
 | `tsig_algorithm` | Алгоритм TSIG | string | "hmac-sha256" |
@@ -337,7 +337,7 @@ certbot certonly \
 ```bash
 #!/bin/bash
 nsupdate -k /etc/letsencrypt/tsig.key <<EOF
-server 192.168.122.100
+server 192.168.200.100
 zone example.com
 update add _acme-challenge.example.com. 300 IN TXT "$CERTBOT_VALIDATION"
 send

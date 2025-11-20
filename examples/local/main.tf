@@ -9,8 +9,8 @@ module "dns_server" {
   # Основные настройки
   vm_name       = "dns-server"
   dns_zone      = "test.local"
-  dns_server_ip = "192.168.123.100"
-  network_cidr  = "192.168.123.0/24"
+  dns_server_ip = "192.168.200.100"
+  network_cidr  = "192.168.200.0/24"
 
   # Ресурсы VM
   memory    = 2048
@@ -41,7 +41,8 @@ module "dns_server" {
   enable_dnssec = false
 
   # Libvirt настройки
-  pool_name  = "default"
+  pool_name   = "dns-server-pool"
+  pool_path   = "/var/lib/libvirt/pools/dns-server"
   libvirt_uri = "qemu:///system"
 
   # База образ Ubuntu 22.04
