@@ -7,6 +7,18 @@ resource "libvirt_pool" "vm_pool" {
   name = var.pool_name
   type = "dir"
   path = var.pool_path
+
+  # Настройка прав доступа для QEMU
+  target {
+    path = var.pool_path
+
+    # Разрешить libvirt автоматически управлять правами доступа
+    permissions {
+      mode  = "0711"
+      owner = 0  # root
+      group = 0  # root
+    }
+  }
 }
 
 # Генерация TSIG секрета
