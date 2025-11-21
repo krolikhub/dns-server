@@ -9,3 +9,10 @@ variable "ssh_public_key_content" {
   type        = string
   default     = ""
 }
+
+variable "ubuntu_password" {
+  description = "Пароль для пользователя ubuntu (для SSH доступа по паролю)"
+  type        = string
+  default     = "ubuntu"
+  sensitive   = true
+}

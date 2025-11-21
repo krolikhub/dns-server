@@ -52,6 +52,13 @@ variable "ssh_public_key" {
   default     = ""
 }
 
+variable "ubuntu_password" {
+  description = "Пароль для пользователя ubuntu (для SSH доступа по паролю)"
+  type        = string
+  default     = "ubuntu"
+  sensitive   = true
+}
+
 variable "base_image_url" {
   description = "URL базового образа (Ubuntu/Debian cloud image)"
   type        = string
