@@ -4,6 +4,12 @@
 
 ## Предварительные требования
 
+**Автоматическая проверка:** Перед началом запустите скрипт проверки всех зависимостей:
+```bash
+cd ../.. # Перейти в корень репозитория
+./scripts/check-prerequisites.sh
+```
+
 1. Установленный libvirt и KVM:
 ```bash
 # Ubuntu/Debian
@@ -222,6 +228,30 @@ terraform destroy
 ```
 
 ## Troubleshooting
+
+### ⚠️ Ошибка "Permission denied" при создании VM
+
+Если при создании libvirt domain вы получаете ошибку:
+```
+Error: error creating libvirt domain: internal error: process exited while connecting to monitor:
+qemu-system-x86_64: -blockdev {...}: Could not open '/var/lib/libvirt/pools/dns-server/dns-server-base.qcow2': Permission denied
+```
+
+**Самая частая причина:** Не установлен пакет `xsltproc`.
+
+**Решение:**
+```bash
+# Ubuntu/Debian
+apt-get install -y xsltproc
+
+# Fedora/RHEL
+dnf install -y libxslt
+
+# После установки повторите terraform apply
+terraform apply
+```
+
+Подробности см. в [TROUBLESHOOTING.md](../../TROUBLESHOOTING.md)
 
 ### Ошибка "xsltproc: executable file not found in $PATH"
 
