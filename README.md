@@ -27,6 +27,7 @@ dns-server/
 │   ├── check-prerequisites.sh           # Проверка всех предварительных требований
 │   ├── fix-libvirt-permissions-safe.sh  # Безопасное исправление прав (рекомендуется)
 │   ├── fix-libvirt-permissions.sh       # Быстрое исправление (небезопасно, только для dev)
+│   ├── cleanup-storage-pool.sh          # Очистка storage pool при ошибке "Directory not empty"
 │   ├── test-dns-update.sh               # Тест динамического обновления DNS
 │   ├── get-tsig-info.sh                 # Получение TSIG информации
 │   ├── check-dns-status.sh              # Проверка статуса DNS сервера
@@ -285,7 +286,23 @@ virsh shutdown dns-server
 # Удаление VM
 virsh destroy dns-server
 virsh undefine dns-server
+
+# Очистка storage pool при ошибке "Directory not empty"
+# Используйте этот скрипт если terraform destroy не может удалить pool
+sudo ./scripts/cleanup-storage-pool.sh
 ```
+
+**Решение проблем с удалением:**
+Если при выполнении `terraform destroy` возникает ошибка "Directory not empty", используйте скрипт очистки:
+
+```bash
+sudo ./scripts/cleanup-storage-pool.sh
+cd examples/local
+terraform state rm module.dns_server.libvirt_pool.vm_pool
+terraform destroy
+```
+
+Подробнее см. [TROUBLESHOOTING.md](TROUBLESHOOTING.md#проблема-directory-not-empty-при-удалении-storage-pool).
 
 ### Проверка DNS сервера
 
