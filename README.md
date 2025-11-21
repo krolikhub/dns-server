@@ -23,8 +23,11 @@ dns-server/
 ├── versions.tf             # Версии провайдеров
 ├── cloud-init/
 │   └── user-data.yml       # Cloud-init конфигурация
+├── docs/
+│   └── DESTROY_ORDER.md    # Правильный порядок удаления ресурсов
 ├── scripts/
 │   ├── check-prerequisites.sh           # Проверка всех предварительных требований
+│   ├── safe-destroy.sh                  # Безопасное удаление с подтверждением (рекомендуется)
 │   ├── fix-libvirt-permissions-safe.sh  # Безопасное исправление прав (рекомендуется)
 │   ├── fix-libvirt-permissions.sh       # Быстрое исправление (небезопасно, только для dev)
 │   ├── cleanup-storage-pool.sh          # Очистка storage pool при ошибке "Directory not empty"
@@ -286,23 +289,55 @@ virsh shutdown dns-server
 # Удаление VM
 virsh destroy dns-server
 virsh undefine dns-server
-
-# Очистка storage pool при ошибке "Directory not empty"
-# Используйте этот скрипт если terraform destroy не может удалить pool
-sudo ./scripts/cleanup-storage-pool.sh
 ```
 
-**Решение проблем с удалением:**
-Если при выполнении `terraform destroy` возникает ошибка "Directory not empty", используйте скрипт очистки:
+### Безопасное удаление инфраструктуры
+
+**РЕКОМЕНДУЕТСЯ:** Используйте скрипт безопасного удаления с подтверждением:
 
 ```bash
+cd examples/local
+
+# Интерактивное удаление (запросит подтверждение)
+../../scripts/safe-destroy.sh
+
+# Или неинтерактивное (без подтверждения)
+../../scripts/safe-destroy.sh --yes
+```
+
+Скрипт автоматически:
+- ✅ Показывает все ресурсы, которые будут удалены
+- ✅ Запрашивает подтверждение (нужно ввести `yes`)
+- ✅ Удаляет ресурсы в правильном порядке
+- ✅ Обрабатывает ошибки gracefully
+- ✅ Предотвращает проблему "Directory not empty"
+
+**Альтернативный метод** (ручное удаление):
+
+```bash
+cd examples/local
+terraform destroy
+```
+
+### Очистка storage pool при ошибке "Directory not empty"
+
+Если при выполнении `terraform destroy` возникает ошибка "Directory not empty":
+
+```bash
+# Используйте этот скрипт если terraform destroy не может удалить pool
 sudo ./scripts/cleanup-storage-pool.sh
+
 cd examples/local
 terraform state rm module.dns_server.libvirt_pool.vm_pool
 terraform destroy
 ```
 
-Подробнее см. [TROUBLESHOOTING.md](TROUBLESHOOTING.md#проблема-directory-not-empty-при-удалении-storage-pool).
+**Почему это происходит?**
+При использовании `terraform destroy -target` или при ошибках во время удаления, ресурсы могут удаляться в неправильном порядке, оставляя файлы в директории storage pool.
+
+Подробнее см:
+- [docs/DESTROY_ORDER.md](docs/DESTROY_ORDER.md) - Правильный порядок удаления ресурсов
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md#проблема-directory-not-empty-при-удалении-storage-pool) - Решение проблем
 
 ### Проверка DNS сервера
 
