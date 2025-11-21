@@ -1,4 +1,114 @@
-# Решение проблем с правами доступа к образам дисков
+# Решение проблем
+
+## Проблема: Directory not empty при удалении storage pool
+
+### Ошибка
+```
+Error: error deleting storage pool: failed to remove pool '/var/lib/libvirt/pools/dns-server': Directory not empty
+```
+
+### Причина
+При выполнении `terraform destroy` libvirt не может удалить storage pool, потому что директория содержит файлы:
+- Диски виртуальных машин (qcow2)
+- Базовые образы
+- Cloud-init ISO файлы
+- Другие orphan-файлы
+
+Это происходит когда:
+1. Volumes не были корректно удалены из Terraform state
+2. Файлы заблокированы запущенной VM
+3. Остались файлы, не управляемые Terraform
+4. Произошла ошибка при удалении volumes
+
+### ⚡ БЫСТРОЕ РЕШЕНИЕ
+
+#### Вариант 1: Автоматический скрипт (Рекомендуется)
+
+```bash
+# Запустите скрипт очистки
+sudo ./scripts/cleanup-storage-pool.sh
+
+# После успешной очистки:
+cd examples/local
+terraform state rm module.dns_server.libvirt_pool.vm_pool
+terraform destroy
+```
+
+Скрипт автоматически:
+- Остановит и удалит VM
+- Удалит все volumes из pool
+- Очистит директорию
+- Удалит pool из libvirt
+
+#### Вариант 2: Ручная очистка
+
+```bash
+# 1. Проверьте содержимое директории
+sudo ls -lah /var/lib/libvirt/pools/dns-server/
+
+# 2. Остановите VM (если запущена)
+virsh destroy dns-server 2>/dev/null || true
+virsh undefine dns-server 2>/dev/null || true
+
+# 3. Удалите volumes из pool
+virsh vol-list dns-server-pool 2>/dev/null | tail -n +3 | awk '{print $1}' | while read vol; do
+  [ -n "$vol" ] && virsh vol-delete "$vol" --pool dns-server-pool
+done
+
+# 4. Удалите файлы вручную
+sudo rm -rf /var/lib/libvirt/pools/dns-server/*
+
+# 5. Удалите директорию
+sudo rmdir /var/lib/libvirt/pools/dns-server
+
+# 6. Удалите pool из libvirt
+virsh pool-destroy dns-server-pool 2>/dev/null || true
+virsh pool-undefine dns-server-pool 2>/dev/null || true
+
+# 7. Удалите pool из Terraform state
+cd examples/local
+terraform state rm module.dns_server.libvirt_pool.vm_pool
+
+# 8. Завершите destroy
+terraform destroy
+```
+
+### Проверка после очистки
+
+```bash
+# Проверьте, что директория удалена
+ls /var/lib/libvirt/pools/dns-server
+# Должно быть: No such file or directory
+
+# Проверьте, что pool удален из libvirt
+virsh pool-list --all | grep dns-server
+# Не должно быть результатов
+
+# Проверьте Terraform state
+cd examples/local
+terraform state list | grep libvirt_pool
+# Не должно быть результатов
+```
+
+### Предотвращение проблемы
+
+Для корректного удаления всегда используйте:
+
+```bash
+# Полное удаление инфраструктуры
+cd examples/local
+terraform destroy
+
+# Если возникают ошибки, удалите ресурсы по порядку:
+terraform destroy -target=module.dns_server.libvirt_domain.dns_server
+terraform destroy -target=module.dns_server.libvirt_volume.dns_server
+terraform destroy -target=module.dns_server.libvirt_volume.base
+terraform destroy -target=module.dns_server.libvirt_cloudinit_disk.cloudinit
+terraform destroy -target=module.dns_server.libvirt_pool.vm_pool
+terraform destroy
+```
+
+---
 
 ## Проблема: Permission denied при создании виртуальной машины
 
