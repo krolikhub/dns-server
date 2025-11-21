@@ -5,12 +5,25 @@ manage_etc_hosts: true
 
 # Пользователи
 users:
+  - name: ubuntu
+    gecos: Ubuntu User
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: users, admin, sudo
+    lock_passwd: false
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ${ssh_public_key}
   - name: root
+    lock_passwd: false
     ssh_authorized_keys:
       - ${ssh_public_key}
   - name: pdns
     system: true
     shell: /bin/false
+
+# SSH настройки
+ssh_pwauth: false
+disable_root: false
 
 # Пакеты для установки
 packages:
