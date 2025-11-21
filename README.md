@@ -41,7 +41,7 @@ dns-server/
 ```bash
 # Ubuntu/Debian
 sudo apt-get update
-sudo apt-get install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils
+sudo apt-get install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils xsltproc
 
 # Включение libvirt
 sudo systemctl enable libvirtd
@@ -359,6 +359,7 @@ sleep 10
 
 - Terraform >= 1.0
 - libvirt (для локальной разработки)
+- xsltproc (требуется для libvirt провайдера)
 - Linux хост с KVM поддержкой
 
 ## Лицензия
