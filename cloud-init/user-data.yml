@@ -303,7 +303,15 @@ runcmd:
   - sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
   - sed -i 's/^#\?ChallengeResponseAuthentication.*/ChallengeResponseAuthentication yes/' /etc/ssh/sshd_config
   - sed -i 's/^#\?KbdInteractiveAuthentication.*/KbdInteractiveAuthentication yes/' /etc/ssh/sshd_config
-  - systemctl restart sshd
+  # Создание дополнительного конфига для гарантии применения настроек
+  - mkdir -p /etc/ssh/sshd_config.d
+  - echo "PasswordAuthentication yes" > /etc/ssh/sshd_config.d/99-custom-auth.conf
+  - echo "PermitRootLogin yes" >> /etc/ssh/sshd_config.d/99-custom-auth.conf
+  - echo "ChallengeResponseAuthentication yes" >> /etc/ssh/sshd_config.d/99-custom-auth.conf
+  - echo "KbdInteractiveAuthentication yes" >> /etc/ssh/sshd_config.d/99-custom-auth.conf
+  - chmod 644 /etc/ssh/sshd_config.d/99-custom-auth.conf
+  # Перезапуск SSH сервиса (в Ubuntu это 'ssh', а не 'sshd')
+  - systemctl restart ssh
 
   # Установка PowerDNS
   - systemctl stop systemd-resolved || true
