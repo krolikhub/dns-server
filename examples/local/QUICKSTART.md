@@ -14,26 +14,37 @@ cd ../..
 
 ### 2. Проверьте SSH ключи
 
-**⚠️ ВАЖНО:** По умолчанию используется ключ `~/.ssh/id_rsa.pub`. Если у вас его нет или вы хотите использовать другой ключ, настройте это перед созданием VM!
+**⚠️ КРИТИЧЕСКИ ВАЖНО:** По умолчанию используется ключ `~/.ssh/id_rsa.pub`. Если этого файла нет, VM создастся БЕЗ SSH доступа и вы не сможете подключиться!
 
 ```bash
 # Проверьте, какие SSH ключи у вас есть
 ls -la ~/.ssh/*.pub
 
-# Если нет id_rsa.pub, создайте его ИЛИ настройте другой ключ
+# Проверьте, существует ли id_rsa.pub
+if [ -f ~/.ssh/id_rsa.pub ]; then
+    echo "✓ id_rsa.pub найден - можно использовать настройки по умолчанию"
+else
+    echo "✗ id_rsa.pub НЕ НАЙДЕН - нужно создать ключ или настроить terraform.tfvars!"
+fi
 ```
 
-**Вариант А: Создать ключ id_rsa**
+**Вариант А: Создать ключ id_rsa (рекомендуется для новых пользователей)**
 ```bash
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+# После этого можете использовать Terraform без terraform.tfvars
 ```
 
-**Вариант Б: Использовать существующий ключ (например, id_ed25519)**
+**Вариант Б: Использовать существующий ключ (например, id_ed25519 или github)**
 ```bash
-# Создайте файл terraform.tfvars
+# Создайте файл terraform.tfvars ПЕРЕД запуском terraform apply
 cat > examples/local/terraform.tfvars <<'EOF'
 ssh_public_key_path = "~/.ssh/id_ed25519.pub"
 EOF
+
+# ИЛИ для github ключа:
+# cat > examples/local/terraform.tfvars <<'EOF'
+# ssh_public_key_path = "~/.ssh/github.pub"
+# EOF
 ```
 
 ## Быстрый старт
@@ -69,9 +80,35 @@ terraform output ssh_command
 # Выполните показанную команду для подключения по SSH
 ```
 
+## ⚠️ VM уже создана без правильного SSH ключа?
+
+Если вы уже создали VM и не можете подключиться по SSH (консоль virsh требует пароль), нужно пересоздать VM:
+
+```bash
+cd examples/local
+
+# 1. Проверьте доступные ключи
+ls -la ~/.ssh/*.pub
+
+# 2. Создайте terraform.tfvars с существующим ключом
+cat > terraform.tfvars <<'EOF'
+ssh_public_key_path = "~/.ssh/id_ed25519.pub"
+EOF
+# Замените id_ed25519.pub на имя вашего существующего ключа
+
+# 3. Пересоздайте VM
+terraform destroy -auto-approve
+terraform apply -auto-approve
+
+# 4. Подождите 2-3 минуты и проверьте
+./test-dns-server.sh
+```
+
+---
+
 ## Быстрая диагностика SSH проблем
 
-Если SSH не работает (`Permission denied`):
+Если SSH не работает (`Permission denied`) после создания VM:
 
 ### Шаг 1: Узнайте, какой ключ используется
 
