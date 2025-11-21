@@ -46,8 +46,56 @@ check_test $?
 
 # 2. Проверка SSH доступа
 echo -e "${YELLOW}[2/6]${NC} Проверка SSH доступа..."
-timeout 5 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=3 root@${DNS_IP} "echo 'SSH OK'" > /dev/null 2>&1
-check_test $?
+SSH_OUTPUT=$(timeout 5 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=3 root@${DNS_IP} "echo 'SSH OK'" 2>&1)
+SSH_RESULT=$?
+
+if [ $SSH_RESULT -eq 0 ]; then
+    check_test 0
+else
+    echo -e "  ${RED}Ошибка SSH: $SSH_OUTPUT${NC}"
+
+    # Показываем диагностическую информацию
+    if echo "$SSH_OUTPUT" | grep -q "Permission denied"; then
+        echo -e "  ${YELLOW}Возможная причина: неправильный SSH ключ${NC}"
+        echo ""
+        echo -e "  ${BLUE}Диагностика:${NC}"
+
+        # Проверяем, какой ключ был использован в Terraform
+        if [ -f "terraform.tfvars" ]; then
+            SSH_KEY_PATH=$(grep ssh_public_key_path terraform.tfvars | cut -d'"' -f2 | sed "s|~|$HOME|")
+            echo -e "  • В terraform.tfvars указан: ${YELLOW}${SSH_KEY_PATH}${NC}"
+        else
+            echo -e "  • Файл terraform.tfvars не найден"
+            echo -e "  • По умолчанию используется: ${YELLOW}~/.ssh/id_rsa.pub${NC}"
+            SSH_KEY_PATH="$HOME/.ssh/id_rsa.pub"
+        fi
+
+        # Проверяем существование ключа
+        if [ -f "$SSH_KEY_PATH" ]; then
+            echo -e "  • Публичный ключ найден: ${GREEN}✓${NC}"
+            PRIVATE_KEY_PATH="${SSH_KEY_PATH%.pub}"
+            if [ -f "$PRIVATE_KEY_PATH" ]; then
+                echo -e "  • Приватный ключ найден: ${GREEN}✓${NC}"
+                echo ""
+                echo -e "  ${BLUE}Попробуйте подключиться с явным указанием ключа:${NC}"
+                echo -e "    ${YELLOW}ssh -i ${PRIVATE_KEY_PATH} root@${DNS_IP}${NC}"
+            else
+                echo -e "  • Приватный ключ не найден: ${RED}✗${NC}"
+            fi
+        else
+            echo -e "  • Ключ не найден: ${RED}✗${NC}"
+            echo ""
+            echo -e "  ${BLUE}Доступные ключи:${NC}"
+            ls -1 ~/.ssh/*.pub 2>/dev/null | while read key; do
+                echo -e "    • $key"
+            done
+        fi
+        echo ""
+        echo -e "  ${BLUE}Подробная инструкция:${NC} ${YELLOW}cat TESTING.md | grep -A 50 'SSH подключение'${NC}"
+    fi
+
+    check_test 1
+fi
 
 # 3. Проверка DNS - SOA запись
 echo -e "${YELLOW}[3/6]${NC} Проверка DNS - SOA запись зоны ${DNS_ZONE}..."
@@ -152,6 +200,11 @@ else
     echo -e "${YELLOW}Рекомендации по отладке:${NC}"
     echo -e "  1. Проверьте логи VM:  ${YELLOW}virsh console dns-server${NC}"
     echo -e "  2. Проверьте SSH:      ${YELLOW}ssh root@${DNS_IP}${NC}"
+    echo -e "     Если SSH не работает, попробуйте указать ключ: ${YELLOW}ssh -i ~/.ssh/id_rsa root@${DNS_IP}${NC}"
     echo -e "  3. Проверьте сервисы:  ${YELLOW}ssh root@${DNS_IP} 'systemctl status pdns'${NC}"
+    echo ""
+    echo -e "${BLUE}Полная документация:${NC}"
+    echo -e "  • Тестирование:    ${YELLOW}cat TESTING.md${NC}"
+    echo -e "  • Быстрый старт:   ${YELLOW}cat QUICKSTART.md${NC}"
     exit 1
 fi

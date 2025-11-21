@@ -165,6 +165,90 @@ dig @192.168.200.100 _acme-challenge.test.local TXT
 
 ## Отладка проблем
 
+### SSH подключение не работает (Permission denied)
+
+Эта проблема возникает, когда SSH клиент пытается использовать не тот ключ, который был установлен на VM при создании.
+
+**Диагностика:**
+
+1. **Проверьте, какой ключ был использован при создании VM:**
+```bash
+# Посмотрите в terraform.tfvars (если файл существует)
+cat terraform.tfvars
+
+# Или проверьте значение по умолчанию в variables.tf
+cat variables.tf
+# По умолчанию используется: ~/.ssh/id_rsa.pub
+```
+
+2. **Проверьте, какой ключ установлен на VM через консоль:**
+```bash
+# Подключитесь к консоли VM
+sudo virsh console dns-server
+
+# После входа (логин: root, может потребоваться нажать Enter)
+cat /root/.ssh/authorized_keys
+
+# Для выхода из консоли: Ctrl+]
+```
+
+3. **Сравните с вашими локальными ключами:**
+```bash
+# Посмотрите все ваши публичные ключи
+ls -la ~/.ssh/*.pub
+
+# Просмотрите содержимое
+cat ~/.ssh/id_rsa.pub
+cat ~/.ssh/id_ed25519.pub
+```
+
+**Решение 1: Используйте правильный ключ**
+
+Если ключ `id_rsa.pub` был установлен на VM, используйте соответствующий приватный ключ:
+```bash
+ssh -i ~/.ssh/id_rsa root@192.168.200.100
+```
+
+Или настройте SSH config для постоянного использования:
+```bash
+cat >> ~/.ssh/config <<'EOF'
+Host 192.168.200.100
+    IdentityFile ~/.ssh/id_rsa
+    User root
+    StrictHostKeyChecking no
+EOF
+```
+
+**Решение 2: Пересоздайте VM с нужным ключом**
+
+Если вы хотите использовать другой ключ (например, `id_ed25519`):
+
+1. Создайте `terraform.tfvars`:
+```bash
+cat > terraform.tfvars <<'EOF'
+ssh_public_key_path = "~/.ssh/id_ed25519.pub"
+EOF
+```
+
+2. Пересоздайте VM:
+```bash
+terraform destroy -auto-approve
+terraform apply -auto-approve
+```
+
+**Решение 3: Добавьте дополнительный ключ на существующую VM**
+
+Если не хотите пересоздавать VM:
+```bash
+# Через консоль virsh
+sudo virsh console dns-server
+
+# После входа добавьте новый ключ
+echo "ваш-новый-публичный-ключ" >> /root/.ssh/authorized_keys
+```
+
+---
+
 ### DNS не отвечает
 
 ```bash
