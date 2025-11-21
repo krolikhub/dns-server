@@ -25,6 +25,9 @@ users:
 # SSH настройки
 ssh_pwauth: true
 disable_root: false
+# Не позволяем cloud-init переопределять SSH конфигурацию
+ssh_deletekeys: false
+ssh_genkeytypes: []
 
 # Пакеты для установки
 packages:
@@ -52,6 +55,19 @@ package_upgrade: true
 
 # Файлы для записи
 write_files:
+  # SSH конфигурация для парольной аутентификации
+  - path: /etc/ssh/sshd_config.d/99-custom-auth.conf
+    owner: root:root
+    permissions: '0644'
+    content: |
+      # Кастомная SSH конфигурация для парольной аутентификации
+      PasswordAuthentication yes
+      PermitRootLogin yes
+      ChallengeResponseAuthentication yes
+      KbdInteractiveAuthentication yes
+      PubkeyAuthentication yes
+      UsePAM yes
+
   # PowerDNS конфигурация
   - path: /etc/powerdns/pdns.conf
     owner: root:root
@@ -303,7 +319,9 @@ runcmd:
   - sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
   - sed -i 's/^#\?ChallengeResponseAuthentication.*/ChallengeResponseAuthentication yes/' /etc/ssh/sshd_config
   - sed -i 's/^#\?KbdInteractiveAuthentication.*/KbdInteractiveAuthentication yes/' /etc/ssh/sshd_config
-  - systemctl restart sshd
+  # Перезапуск SSH сервиса (в Ubuntu это 'ssh', а не 'sshd')
+  # Файл 99-custom-auth.conf уже создан через write_files и имеет приоритет
+  - systemctl restart ssh
 
   # Установка PowerDNS
   - systemctl stop systemd-resolved || true
