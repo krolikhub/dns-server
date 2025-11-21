@@ -24,12 +24,13 @@ dns-server/
 ├── cloud-init/
 │   └── user-data.yml       # Cloud-init конфигурация
 ├── scripts/
-│   ├── check-prerequisites.sh      # Проверка всех предварительных требований
-│   ├── fix-libvirt-permissions.sh  # Автоматическое исправление прав доступа libvirt
-│   ├── test-dns-update.sh          # Тест динамического обновления DNS
-│   ├── get-tsig-info.sh            # Получение TSIG информации
-│   ├── check-dns-status.sh         # Проверка статуса DNS сервера
-│   └── setup-terraform-env.sh      # Настройка окружения для Terraform (прокси)
+│   ├── check-prerequisites.sh           # Проверка всех предварительных требований
+│   ├── fix-libvirt-permissions-safe.sh  # Безопасное исправление прав (рекомендуется)
+│   ├── fix-libvirt-permissions.sh       # Быстрое исправление (небезопасно, только для dev)
+│   ├── test-dns-update.sh               # Тест динамического обновления DNS
+│   ├── get-tsig-info.sh                 # Получение TSIG информации
+│   ├── check-dns-status.sh              # Проверка статуса DNS сервера
+│   └── setup-terraform-env.sh           # Настройка окружения для Terraform (прокси)
 └── examples/
     └── local/              # Пример для локальной разработки
         ├── main.tf
@@ -80,13 +81,21 @@ ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
 ⚠️ **ВАЖНО**: Если при `terraform apply` возникает ошибка `Permission denied` при доступе к файлам образов, выполните:
 
 ```bash
-# Автоматическое исправление конфигурации libvirt
-sudo ./scripts/fix-libvirt-permissions.sh
+# Рекомендуемый способ (безопасный)
+sudo ./scripts/fix-libvirt-permissions-safe.sh
+# Выберите опцию 1 для production или 2 для разработки
 ```
 
-Этот скрипт настроит правильные параметры безопасности в `/etc/libvirt/qemu.conf` и перезапустит libvirtd.
+Или для быстрого решения (только для разработки, НЕ для production!):
+```bash
+sudo ./scripts/fix-libvirt-permissions.sh  # Запускает QEMU от root - небезопасно!
+```
 
-Подробнее см. [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+**Что выбрать?**
+- **Production / публичные серверы** → используйте `fix-libvirt-permissions-safe.sh` (опция 1)
+- **Личный компьютер для разработки** → любой вариант на ваш выбор
+
+Подробнее см. [TROUBLESHOOTING.md](TROUBLESHOOTING.md) и [SECURITY.md](SECURITY.md).
 
 ### 3. Запуск
 
