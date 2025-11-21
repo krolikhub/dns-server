@@ -177,8 +177,8 @@ write_files:
       # Добавление TSIG ключа в БД
       echo "Добавление TSIG ключа..."
       sqlite3 "$DB_PATH" <<EOF
-      INSERT OR REPLACE INTO tsigkeys (name, algorithm, secret)
-      VALUES ('$TSIG_NAME', '$TSIG_ALGO', '$TSIG_SECRET');
+INSERT OR REPLACE INTO tsigkeys (name, algorithm, secret)
+VALUES ('$TSIG_NAME', '$TSIG_ALGO', '$TSIG_SECRET');
 EOF
 
       # Создание DNS зоны
@@ -187,13 +187,13 @@ EOF
 
       if [ -z "$ZONE_ID" ]; then
         sqlite3 "$DB_PATH" <<EOF
-      INSERT INTO domains (name, type, master) VALUES ('$ZONE', 'NATIVE', '');
+INSERT INTO domains (name, type, master) VALUES ('$ZONE', 'NATIVE', '');
 
-      INSERT INTO records (domain_id, name, type, content, ttl, prio)
-      VALUES
-        ((SELECT id FROM domains WHERE name='$ZONE'), '$ZONE', 'SOA', 'ns1.$ZONE hostmaster.$ZONE 1 10800 3600 604800 3600', 3600, 0),
-        ((SELECT id FROM domains WHERE name='$ZONE'), '$ZONE', 'NS', 'ns1.$ZONE', 3600, 0),
-        ((SELECT id FROM domains WHERE name='$ZONE'), 'ns1.$ZONE', 'A', '$NS_IP', 3600, 0);
+INSERT INTO records (domain_id, name, type, content, ttl, prio)
+VALUES
+  ((SELECT id FROM domains WHERE name='$ZONE'), '$ZONE', 'SOA', 'ns1.$ZONE hostmaster.$ZONE 1 10800 3600 604800 3600', 3600, 0),
+  ((SELECT id FROM domains WHERE name='$ZONE'), '$ZONE', 'NS', 'ns1.$ZONE', 3600, 0),
+  ((SELECT id FROM domains WHERE name='$ZONE'), 'ns1.$ZONE', 'A', '$NS_IP', 3600, 0);
 EOF
         echo "Зона $ZONE создана"
       else
@@ -203,13 +203,13 @@ EOF
       # Установка метаданных для TSIG
       echo "Настройка TSIG метаданных..."
       sqlite3 "$DB_PATH" <<EOF
-      DELETE FROM domainmetadata WHERE domain_id = (SELECT id FROM domains WHERE name='$ZONE') AND kind='TSIG-ALLOW-DNSUPDATE';
-      INSERT INTO domainmetadata (domain_id, kind, content)
-      VALUES ((SELECT id FROM domains WHERE name='$ZONE'), 'TSIG-ALLOW-DNSUPDATE', '$TSIG_NAME');
+DELETE FROM domainmetadata WHERE domain_id = (SELECT id FROM domains WHERE name='$ZONE') AND kind='TSIG-ALLOW-DNSUPDATE';
+INSERT INTO domainmetadata (domain_id, kind, content)
+VALUES ((SELECT id FROM domains WHERE name='$ZONE'), 'TSIG-ALLOW-DNSUPDATE', '$TSIG_NAME');
 
-      DELETE FROM domainmetadata WHERE domain_id = (SELECT id FROM domains WHERE name='$ZONE') AND kind='ALLOW-DNSUPDATE-FROM';
-      INSERT INTO domainmetadata (domain_id, kind, content)
-      VALUES ((SELECT id FROM domains WHERE name='$ZONE'), 'ALLOW-DNSUPDATE-FROM', '0.0.0.0/0');
+DELETE FROM domainmetadata WHERE domain_id = (SELECT id FROM domains WHERE name='$ZONE') AND kind='ALLOW-DNSUPDATE-FROM';
+INSERT INTO domainmetadata (domain_id, kind, content)
+VALUES ((SELECT id FROM domains WHERE name='$ZONE'), 'ALLOW-DNSUPDATE-FROM', '0.0.0.0/0');
 EOF
 
       # Права доступа
@@ -282,17 +282,17 @@ EOF
       fi
 
       cat > /etc/wireguard/wg0.conf <<EOF
-      [Interface]
-      PrivateKey = $WG_PRIVATE_KEY
-      Address = $WG_ADDRESS
-      ListenPort = 51820
+[Interface]
+PrivateKey = $WG_PRIVATE_KEY
+Address = $WG_ADDRESS
+ListenPort = 51820
 
-      [Peer]
-      PublicKey = $WG_PEER_PUBLIC_KEY
-      Endpoint = $WG_PEER_ENDPOINT
-      AllowedIPs = $WG_PEER_ALLOWED_IPS
-      PersistentKeepalive = 25
-      EOF
+[Peer]
+PublicKey = $WG_PEER_PUBLIC_KEY
+Endpoint = $WG_PEER_ENDPOINT
+AllowedIPs = $WG_PEER_ALLOWED_IPS
+PersistentKeepalive = 25
+EOF
 
       chmod 600 /etc/wireguard/wg0.conf
 
