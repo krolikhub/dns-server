@@ -32,6 +32,11 @@ resource "libvirt_volume" "base" {
   pool   = libvirt_pool.vm_pool.name
   source = var.base_image_url
   format = "qcow2"
+
+  timeouts {
+    create = "10m"
+    delete = "5m"
+  }
 }
 
 # Диск для виртуальной машины
@@ -41,6 +46,11 @@ resource "libvirt_volume" "dns_server" {
   base_volume_id = libvirt_volume.base.id
   size           = var.disk_size
   format         = "qcow2"
+
+  timeouts {
+    create = "10m"
+    delete = "5m"
+  }
 }
 
 # Cloud-init диск
@@ -48,6 +58,11 @@ resource "libvirt_cloudinit_disk" "cloudinit" {
   name      = "${var.vm_name}-cloudinit.iso"
   pool      = libvirt_pool.vm_pool.name
   user_data = data.template_file.user_data.rendered
+
+  timeouts {
+    create = "5m"
+    delete = "2m"
+  }
 }
 
 # Сетевой интерфейс
@@ -87,6 +102,11 @@ resource "libvirt_domain" "dns_server" {
 
   disk {
     volume_id = libvirt_volume.dns_server.id
+  }
+
+  timeouts {
+    create = "15m"
+    delete = "5m"
   }
 
   console {
