@@ -28,6 +28,8 @@ disable_root: false
 # Не позволяем cloud-init переопределять SSH конфигурацию
 ssh_deletekeys: false
 ssh_genkeytypes: []
+# Отключаем quiet режим генерации ключей для диагностики
+ssh_quiet_keygen: false
 
 # Пакеты для установки
 packages:
@@ -56,17 +58,34 @@ package_upgrade: true
 # Файлы для записи
 write_files:
   # SSH конфигурация для парольной аутентификации
-  - path: /etc/ssh/sshd_config.d/99-custom-auth.conf
+  # ВАЖНО: Используем 01- префикс чтобы этот файл читался ПЕРЕД 50-cloud-init.conf
+  # В SSH конфигурации ПЕРВАЯ найденная директива имеет приоритет!
+  - path: /etc/ssh/sshd_config.d/01-custom-auth.conf
     owner: root:root
     permissions: '0644'
     content: |
       # Кастомная SSH конфигурация для парольной аутентификации
+      # Этот файл имеет приоритет над 50-cloud-init.conf
       PasswordAuthentication yes
       PermitRootLogin yes
       ChallengeResponseAuthentication yes
       KbdInteractiveAuthentication yes
       PubkeyAuthentication yes
       UsePAM yes
+
+  # Дополнительная защита: удаляем 50-cloud-init.conf если он уже создан
+  - path: /usr/local/bin/fix-ssh-config.sh
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      # Удаляем cloud-init SSH конфиг если он существует
+      rm -f /etc/ssh/sshd_config.d/50-cloud-init.conf
+      # Проверяем эффективную конфигурацию SSH
+      echo "=== Эффективная SSH конфигурация ==="
+      sshd -T | grep -E '(passwordauthentication|permitrootlogin|kbdinteractiveauthentication)'
+      echo "=== Список конфигов SSH ==="
+      ls -la /etc/ssh/sshd_config.d/
 
   # PowerDNS конфигурация
   - path: /etc/powerdns/pdns.conf
@@ -315,13 +334,24 @@ runcmd:
   - echo "127.0.0.1 ${hostname} ${hostname}.${dns_zone}" >> /etc/hosts
 
   # Настройка SSH для парольной аутентификации
+  # Обновляем основной конфиг (на всякий случай)
   - sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
   - sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
   - sed -i 's/^#\?ChallengeResponseAuthentication.*/ChallengeResponseAuthentication yes/' /etc/ssh/sshd_config
   - sed -i 's/^#\?KbdInteractiveAuthentication.*/KbdInteractiveAuthentication yes/' /etc/ssh/sshd_config
-  # Перезапуск SSH сервиса (в Ubuntu это 'ssh', а не 'sshd')
-  # Файл 99-custom-auth.conf уже создан через write_files и имеет приоритет
+
+  # КРИТИЧЕСКИ ВАЖНО: Удаляем 50-cloud-init.conf который может перекрыть наши настройки
+  - /usr/local/bin/fix-ssh-config.sh
+
+  # Перезапуск SSH сервиса ПОСЛЕ удаления конфликтующих конфигов
+  # Файл 01-custom-auth.conf уже создан через write_files и имеет МАКСИМАЛЬНЫЙ приоритет
   - systemctl restart ssh
+
+  # Проверяем что SSH действительно принимает пароли
+  - echo "=== SSH Password Authentication Status ===" >> /var/log/ssh-config-check.log
+  - sshd -T | grep passwordauthentication >> /var/log/ssh-config-check.log
+  - echo "=== SSH Config Files ===" >> /var/log/ssh-config-check.log
+  - ls -la /etc/ssh/sshd_config.d/ >> /var/log/ssh-config-check.log
 
   # Установка PowerDNS
   - systemctl stop systemd-resolved || true
