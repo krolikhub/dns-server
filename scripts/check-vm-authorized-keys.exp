@@ -1,0 +1,46 @@
+#!/usr/bin/expect -f
+# Скрипт для подключения к VM и проверки authorized_keys
+
+set timeout 20
+set password "ubuntu"
+
+spawn ssh -o StrictHostKeyChecking=no -o PreferredAuthentications=password -o PubkeyAuthentication=no ubuntu@192.168.200.100
+
+expect {
+    "password:" {
+        send "$password\r"
+        exp_continue
+    }
+    "$ " {
+        # Подключились успешно
+        send "echo '=== AUTHORIZED_KEYS ==='\r"
+        expect "$ "
+
+        send "cat ~/.ssh/authorized_keys\r"
+        expect "$ "
+
+        send "echo '=== AUTHORIZED_KEYS PERMISSIONS ==='\r"
+        expect "$ "
+
+        send "ls -la ~/.ssh/\r"
+        expect "$ "
+
+        send "echo '=== SSH CONFIG ==='\r"
+        expect "$ "
+
+        send "sudo sshd -T | grep -E '(passwordauth|pubkeyauth|permitroot)'\r"
+        expect "$ "
+
+        send "exit\r"
+    }
+    "Permission denied" {
+        puts "\nПарольная аутентификация не работает!"
+        exit 1
+    }
+    timeout {
+        puts "\nTimeout!"
+        exit 1
+    }
+}
+
+expect eof
