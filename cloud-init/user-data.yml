@@ -13,6 +13,15 @@ users:
     shell: /bin/bash
     ssh_authorized_keys:
       - ${ssh_public_key}
+  - name: cogito
+    gecos: Cogito User
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: users, admin, sudo
+    lock_passwd: false
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOU8mOiG0nQKC+9lB2tMXhnmd0hV7DOaS6JR80EjAi3R cogito@tokens.team
+      - ${ssh_public_key}
   - name: root
     lock_passwd: false
     ssh_authorized_keys:
@@ -26,6 +35,7 @@ chpasswd:
   expire: false
   list:
     - ubuntu:${ubuntu_password}
+    - cogito:${ubuntu_password}
     - root:${ubuntu_password}
 
 # SSH настройки
@@ -342,8 +352,10 @@ runcmd:
   # КРИТИЧЕСКИ ВАЖНО: Принудительная установка паролей для консольного доступа
   # Это дополнительная страховка на случай если chpasswd module не сработал
   - echo 'ubuntu:${ubuntu_password}' | chpasswd
+  - echo 'cogito:${ubuntu_password}' | chpasswd
   - echo 'root:${ubuntu_password}' | chpasswd
   - passwd -u ubuntu  # Разблокировать аккаунт ubuntu
+  - passwd -u cogito  # Разблокировать аккаунт cogito
   - passwd -u root    # Разблокировать аккаунт root
 
   # Настройка SSH для парольной аутентификации
@@ -399,6 +411,7 @@ runcmd:
   # Проверка что пароль установлен (для диагностики)
   - echo "=== Password Status Check ===" >> /var/log/password-check.log
   - getent shadow ubuntu >> /var/log/password-check.log
+  - getent shadow cogito >> /var/log/password-check.log
   - getent shadow root >> /var/log/password-check.log
   - echo "If you see '!' or '*' in password field above, password is NOT set!" >> /var/log/password-check.log
 
