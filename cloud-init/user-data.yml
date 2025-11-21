@@ -11,7 +11,6 @@ users:
     groups: users, admin, sudo
     lock_passwd: false
     shell: /bin/bash
-    plain_text_passwd: ${ubuntu_password}
     ssh_authorized_keys:
       - ${ssh_public_key}
   - name: root
@@ -21,6 +20,13 @@ users:
   - name: pdns
     system: true
     shell: /bin/false
+
+# Установка паролей через chpasswd (более надежный метод)
+chpasswd:
+  expire: false
+  list:
+    - ubuntu:${ubuntu_password}
+    - root:${ubuntu_password}
 
 # SSH настройки
 ssh_pwauth: true
@@ -333,6 +339,13 @@ runcmd:
   # Системные настройки
   - echo "127.0.0.1 ${hostname} ${hostname}.${dns_zone}" >> /etc/hosts
 
+  # КРИТИЧЕСКИ ВАЖНО: Принудительная установка паролей для консольного доступа
+  # Это дополнительная страховка на случай если chpasswd module не сработал
+  - echo 'ubuntu:${ubuntu_password}' | chpasswd
+  - echo 'root:${ubuntu_password}' | chpasswd
+  - passwd -u ubuntu  # Разблокировать аккаунт ubuntu
+  - passwd -u root    # Разблокировать аккаунт root
+
   # Настройка SSH для парольной аутентификации
   # Обновляем основной конфиг (на всякий случай)
   - sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
@@ -383,9 +396,17 @@ runcmd:
   - echo "TSIG Algorithm: ${tsig_algorithm}" >> /root/tsig-info.txt
   - chmod 600 /root/tsig-info.txt
 
+  # Проверка что пароль установлен (для диагностики)
+  - echo "=== Password Status Check ===" >> /var/log/password-check.log
+  - getent shadow ubuntu >> /var/log/password-check.log
+  - getent shadow root >> /var/log/password-check.log
+  - echo "If you see '!' or '*' in password field above, password is NOT set!" >> /var/log/password-check.log
+
   # Финальное сообщение
   - echo "DNS Server setup completed!" > /var/log/cloud-init-done.log
   - echo "Zone: ${dns_zone}" >> /var/log/cloud-init-done.log
   - echo "IP: ${dns_server_ip}" >> /var/log/cloud-init-done.log
+  - echo "Ubuntu Password: ${ubuntu_password}" >> /var/log/cloud-init-done.log
+  - echo "Console Login: ubuntu / ${ubuntu_password}" >> /var/log/cloud-init-done.log
 
 final_message: "DNS Server with PowerDNS is ready! Zone: ${dns_zone}, IP: ${dns_server_ip}"
