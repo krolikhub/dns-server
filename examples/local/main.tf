@@ -20,6 +20,9 @@ module "dns_server" {
   # SSH ключ (замените на свой!)
   ssh_public_key = var.ssh_public_key_content != "" ? var.ssh_public_key_content : file(pathexpand(var.ssh_public_key_path))
 
+  # SSH пароль для пользователя ubuntu
+  ubuntu_password = var.ubuntu_password
+
   # TSIG настройки
   tsig_key_name  = "txt-updater"
   tsig_algorithm = "hmac-sha256"

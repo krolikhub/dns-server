@@ -11,6 +11,7 @@ users:
     groups: users, admin, sudo
     lock_passwd: false
     shell: /bin/bash
+    plain_text_passwd: ${ubuntu_password}
     ssh_authorized_keys:
       - ${ssh_public_key}
   - name: root
@@ -22,7 +23,7 @@ users:
     shell: /bin/false
 
 # SSH настройки
-ssh_pwauth: false
+ssh_pwauth: true
 disable_root: false
 
 # Пакеты для установки

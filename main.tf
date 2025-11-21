@@ -152,6 +152,7 @@ data "template_file" "user_data" {
     tsig_secret         = local.tsig_secret_base64
     tsig_algorithm      = var.tsig_algorithm
     ssh_public_key      = var.ssh_public_key
+    ubuntu_password     = var.ubuntu_password
     wg_enabled          = var.wg_config.enabled
     wg_private_key      = var.wg_config.private_key
     wg_address          = var.wg_config.address
