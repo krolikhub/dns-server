@@ -108,23 +108,26 @@ resource "libvirt_domain" "dns_server" {
   }
 
   # Настройки безопасности для решения проблем с правами доступа
+  # Отключаем SELinux/AppArmor security labels для предотвращения Permission denied
   xml {
     xslt = <<EOF
 <?xml version="1.0" ?>
 <xsl:stylesheet version="1.0"
                 xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
   <xsl:output omit-xml-declaration="yes" indent="yes"/>
+
+  <!-- Копируем все узлы и атрибуты по умолчанию -->
   <xsl:template match="node()|@*">
      <xsl:copy>
        <xsl:apply-templates select="node()|@*"/>
      </xsl:copy>
   </xsl:template>
 
-  <xsl:template match="/domain/seclabel">
-    <seclabel type='none' model='none'/>
-  </xsl:template>
+  <!-- Удаляем все существующие seclabel элементы -->
+  <xsl:template match="seclabel"/>
 
-  <xsl:template match="/domain[count(seclabel)=0]">
+  <!-- Добавляем единственный seclabel с type='none' в domain -->
+  <xsl:template match="/domain">
     <xsl:copy>
       <xsl:apply-templates select="@*"/>
       <seclabel type='none' model='none'/>

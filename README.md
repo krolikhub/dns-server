@@ -24,11 +24,12 @@ dns-server/
 ├── cloud-init/
 │   └── user-data.yml       # Cloud-init конфигурация
 ├── scripts/
-│   ├── check-prerequisites.sh # Проверка всех предварительных требований
-│   ├── test-dns-update.sh    # Тест динамического обновления DNS
-│   ├── get-tsig-info.sh      # Получение TSIG информации
-│   ├── check-dns-status.sh   # Проверка статуса DNS сервера
-│   └── setup-terraform-env.sh # Настройка окружения для Terraform (прокси)
+│   ├── check-prerequisites.sh      # Проверка всех предварительных требований
+│   ├── fix-libvirt-permissions.sh  # Автоматическое исправление прав доступа libvirt
+│   ├── test-dns-update.sh          # Тест динамического обновления DNS
+│   ├── get-tsig-info.sh            # Получение TSIG информации
+│   ├── check-dns-status.sh         # Проверка статуса DNS сервера
+│   └── setup-terraform-env.sh      # Настройка окружения для Terraform (прокси)
 └── examples/
     └── local/              # Пример для локальной разработки
         ├── main.tf
@@ -74,7 +75,20 @@ sudo mv terraform /usr/local/bin/
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
 ```
 
-### 2. Запуск
+### 2. Исправление прав доступа libvirt (если возникла ошибка Permission denied)
+
+⚠️ **ВАЖНО**: Если при `terraform apply` возникает ошибка `Permission denied` при доступе к файлам образов, выполните:
+
+```bash
+# Автоматическое исправление конфигурации libvirt
+sudo ./scripts/fix-libvirt-permissions.sh
+```
+
+Этот скрипт настроит правильные параметры безопасности в `/etc/libvirt/qemu.conf` и перезапустит libvirtd.
+
+Подробнее см. [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+
+### 3. Запуск
 
 ```bash
 cd examples/local
@@ -89,7 +103,7 @@ terraform init
 terraform apply
 ```
 
-### 3. Проверка
+### 4. Проверка
 
 ```bash
 # Получить IP адрес
