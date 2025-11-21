@@ -46,7 +46,7 @@ check_test $?
 
 # 2. Проверка SSH доступа
 echo -e "${YELLOW}[2/6]${NC} Проверка SSH доступа..."
-timeout 5 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=3 root@${DNS_IP} "echo 'SSH OK'" > /dev/null 2>&1
+timeout 5 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=3 ubuntu@${DNS_IP} "echo 'SSH OK'" > /dev/null 2>&1
 check_test $?
 
 # 3. Проверка DNS - SOA запись
@@ -142,7 +142,7 @@ if [ $FAILED -eq 0 ]; then
     echo -e "${GREEN}✓ Все проверки пройдены успешно!${NC}"
     echo ""
     echo -e "${BLUE}Дополнительные команды:${NC}"
-    echo -e "  • SSH доступ:    ${YELLOW}ssh -o StrictHostKeyChecking=no root@${DNS_IP}${NC}"
+    echo -e "  • SSH доступ:    ${YELLOW}ssh -o StrictHostKeyChecking=no ubuntu@${DNS_IP}${NC}"
     echo -e "  • DNS запрос:    ${YELLOW}dig @${DNS_IP} ${DNS_ZONE} SOA${NC}"
     echo -e "  • Virsh console: ${YELLOW}virsh console dns-server${NC}"
     exit 0
@@ -151,7 +151,7 @@ else
     echo ""
     echo -e "${YELLOW}Рекомендации по отладке:${NC}"
     echo -e "  1. Проверьте логи VM:  ${YELLOW}virsh console dns-server${NC}"
-    echo -e "  2. Проверьте SSH:      ${YELLOW}ssh root@${DNS_IP}${NC}"
-    echo -e "  3. Проверьте сервисы:  ${YELLOW}ssh root@${DNS_IP} 'systemctl status pdns'${NC}"
+    echo -e "  2. Проверьте SSH:      ${YELLOW}ssh ubuntu@${DNS_IP}${NC}"
+    echo -e "  3. Проверьте сервисы:  ${YELLOW}ssh ubuntu@${DNS_IP} 'systemctl status pdns'${NC}"
     exit 1
 fi
